@@ -1,0 +1,18 @@
+msgid ""
+msgstr "Project-Id-Version: tygh\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language-Team: English\n"
+"Language: en_US\n"
+
+msgctxt "Addons::name::qty_discounts_extended"
+msgid "Extended qty discounts"
+msgstr "Extended qty discounts"
+
+msgctxt "Addons::description::qty_discounts_extended"
+msgid "Extends the default qty discounts functionality. Makes it globally applied"
+msgstr "Extends the default qty discounts functionality. Makes it globally applied"
+
+msgctxt "Languages::qty_discounts_extended.menu_item"
+msgid "Global qty discounts"
+msgstr "Global qty discounts"
+

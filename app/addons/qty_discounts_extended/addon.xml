@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<addon scheme="3.0">
+    <id>qty_discounts_extended</id>
+    <version>1.0</version>
+    <priority>10000</priority>
+    <position>0</position>
+    <default_language>en</default_language>
+    <status>active</status>
+    <queries>
+        <item>
+            CREATE TABLE `?:global_qty_discounts` (
+            `id` mediumint unsigned AUTO_INCREMENT,
+            `percentage_discount` decimal(5,2) NOT NULL default '0.00',
+            `lower_limit` mediumint unsigned NOT NULL default '0',
+            PRIMARY KEY (`id`),
+            KEY `id_x` (`id`),
+            UNIQUE KEY `uniq_discount_pair` (`lower_limit`, `percentage_discount`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+        </item>
+    </queries>
+</addon>

@@ -69,59 +69,81 @@ function fn_qty_discounts_extended_delete_discount($discount_id)
  */
 function fn_qty_discounts_set_product_prices($discounts)
 {
-    $base_prices = db_get_hash_array('
-        SELECT product_id, price, percentage_discount, lower_limit
-        FROM ?:product_prices 
-        WHERE lower_limit = 1 AND usergroup_id = 0
-    ', 'product_id');
+    $limit = 1000;
+    $offset = 0;
 
-    $existing_discounts = db_get_hash_array('
-        SELECT product_id, lower_limit, percentage_discount
-        FROM ?:product_prices 
-        WHERE lower_limit > 1 AND usergroup_id = 0
-    ', 'product_id');
+    do {
+        $base_prices = db_get_array('
+            SELECT product_id, price 
+            FROM ?:product_prices 
+            WHERE lower_limit = 1 AND usergroup_id = 0
+            LIMIT ?i OFFSET ?i
+        ', $limit, $offset);
 
-    $rows_to_insert = [];
-
-    foreach ($base_prices as $product_id => $product) {
-        $price = $product['price'];
-
-        if (
-            isset($existing_discounts[$product_id])
-            && $existing_discounts[$product_id]['lower_limit'] == $product['lower_limit']
-            && $existing_discounts[$product_id]['percentage_discount'] == $product['percentage_discount']
-        ) {
-            continue;
+        if (empty($base_prices)) {
+            break;
         }
 
-        foreach ($discounts as $discount_data) {
-            $rows_to_insert[] = [
-                $product_id,
-                $price,
-                $discount_data['percentage_discount'],
-                $discount_data['lower_limit'],
-                0
-            ];
-        }
-    }
+        $product_ids = array_column($base_prices, 'product_id');
 
-    $chunk_size = 500;
-    foreach (array_chunk($rows_to_insert, $chunk_size) as $chunk) {
-        $values = [];
+        $existing_discounts = db_get_array('
+            SELECT product_id, lower_limit, percentage_discount
+            FROM ?:product_prices
+            WHERE usergroup_id = 0 AND lower_limit > 1 AND product_id IN (?n)
+        ', $product_ids);
 
-        foreach ($chunk as $row) {
-            $values[] = db_quote("(?i, ?d, ?d, ?i, ?i)", $row[0], $row[1], $row[2], $row[3], $row[4]);
+
+        $existing_map = [];
+        foreach ($existing_discounts as $row) {
+            $key = $row['product_id'] . '_' . $row['lower_limit'];
+            $existing_map[$key] = $row['percentage_discount'];
         }
 
-        if (!empty($values)) {
-            db_query("
-                INSERT INTO ?:product_prices 
-                    (product_id, price, percentage_discount, lower_limit, usergroup_id)
-                VALUES " . implode(', ', $values) . "
-                ON DUPLICATE KEY UPDATE 
-                    price = VALUES(price),
-                    percentage_discount = VALUES(percentage_discount)
-            ");
+        $rows_to_insert = [];
+
+        foreach ($base_prices as $product) {
+            $product_id = (int)$product['product_id'];
+            $price = (float)$product['price'];
+
+            foreach ($discounts as $discount_data) {
+                $lower_limit = (int)$discount_data['lower_limit'];
+                $percentage_discount = (float)$discount_data['percentage_discount'];
+                $key = $product_id . '_' . $lower_limit;
+
+                if (isset($existing_map[$key]) && floatval($existing_map[$key]) === $percentage_discount) {
+                    continue;
+                }
+
+                $rows_to_insert[] = [
+                    $product_id,
+                    $price,
+                    $percentage_discount,
+                    $lower_limit,
+                    0 // usergroup_id
+                ];
+            }
         }
-    }
+
+        // Вставка батчами
+        $chunk_size = 500;
+        foreach (array_chunk($rows_to_insert, $chunk_size) as $chunk) {
+            $values = [];
+            foreach ($chunk as $row) {
+                $values[] = db_quote("(?i, ?d, ?d, ?i, ?i)", $row[0], $row[1], $row[2], $row[3], $row[4]);
+            }
+
+            if (!empty($values)) {
+                db_query("
+                    INSERT INTO ?:product_prices 
+                        (product_id, price, percentage_discount, lower_limit, usergroup_id)
+                    VALUES " . implode(', ', $values) . "
+                    ON DUPLICATE KEY UPDATE 
+                        price = VALUES(price),
+                        percentage_discount = VALUES(percentage_discount)
+                ");
+            }
+        }
+
+        $offset += $limit;
+    } while (true);
 }

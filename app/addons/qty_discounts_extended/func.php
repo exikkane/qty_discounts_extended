@@ -5,16 +5,19 @@
  *
  * @return array
  */
-function fn_qty_discounts_extended_get_discounts(): array
+function fn_qty_discounts_extended_get_discounts()
 {
     return db_get_array('SELECT * FROM ?:global_qty_discounts ORDER BY lower_limit');
 }
 
 /*
  * Updates the global qty discounts
- * Using the new information, updates all the product prices according to the give qty discounts information
+ * Using the new information, updates all the product prices according to the given qty discounts information
+ *
+ * @param array $discounts
+ * @return bool
  */
-function fn_qty_discounts_extended_update_discounts($discounts): bool
+function fn_qty_discounts_extended_update_discounts($discounts)
 {
     if (empty($discounts)) {
         return false;
@@ -32,9 +35,9 @@ function fn_qty_discounts_extended_update_discounts($discounts): bool
             }
 
             db_replace_into('global_qty_discounts', $discount);
-
             continue;
         }
+
         // remove an empty entry
         unset($discounts[$key]);
     }
@@ -46,6 +49,9 @@ function fn_qty_discounts_extended_update_discounts($discounts): bool
 
 /*
  * Removes the global discount and all the associated prices
+ *
+ * @param int $discount_id
+ * @return void
  */
 function fn_qty_discounts_extended_delete_discount($discount_id)
 {
@@ -57,6 +63,9 @@ function fn_qty_discounts_extended_delete_discount($discount_id)
 
 /*
  * Updates the prices of products based on the provided discounts data
+ *
+ * @param array $discounts
+ * @return void
  */
 function fn_qty_discounts_set_product_prices($discounts)
 {
@@ -84,6 +93,7 @@ function fn_qty_discounts_set_product_prices($discounts)
         ) {
             continue;
         }
+
         foreach ($discounts as $discount_data) {
             $rows_to_insert[] = [
                 $product_id,
@@ -100,18 +110,18 @@ function fn_qty_discounts_set_product_prices($discounts)
         $values = [];
 
         foreach ($chunk as $row) {
-            $values[] = db_quote("(?i, ?d, ?d, ?i, ?i)", ...$row);
+            $values[] = db_quote("(?i, ?d, ?d, ?i, ?i)", $row[0], $row[1], $row[2], $row[3], $row[4]);
         }
 
         if (!empty($values)) {
             db_query("
-            INSERT INTO ?:product_prices 
-                (product_id, price, percentage_discount, lower_limit, usergroup_id)
-            VALUES " . implode(', ', $values) . "
-            ON DUPLICATE KEY UPDATE 
-                price = VALUES(price),
-                percentage_discount = VALUES(percentage_discount)
-        ");
+                INSERT INTO ?:product_prices 
+                    (product_id, price, percentage_discount, lower_limit, usergroup_id)
+                VALUES " . implode(', ', $values) . "
+                ON DUPLICATE KEY UPDATE 
+                    price = VALUES(price),
+                    percentage_discount = VALUES(percentage_discount)
+            ");
         }
     }
 }
